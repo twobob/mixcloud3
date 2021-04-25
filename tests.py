@@ -9,13 +9,8 @@ import httpretty
 import mixcloud
 from mixcloud.mock import MockServer, parse_headers, parse_multipart
 
-try:
-    from unittest import mock
-    from urllib.parse import parse_qs, urlsplit
-except ImportError:
-    # Python 2 fallback.
-    import mock
-    from urlparse import parse_qs, urlsplit
+from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 
 def parse_tracklist(s):

@@ -45,7 +45,7 @@ class MixcloudOauth:
             'client_id': self.client_id,
             'redirect_uri': self.redirect_uri,
         }
-        return "{}?{}".format(auth_url, urlencode(params))
+        return f"{auth_url}?{urlencode(params)}"
 
     def exchange_token(self, code):
         """
