@@ -1,18 +1,9 @@
 import collections
 import dateutil.parser
 import netrc
-import re
 import requests
-import unidecode
+from slugify import slugify
 import yaml
-
-try:
-    from urllib.parse import urlencode
-except ImportError:
-    # Python 2 fallback.
-    from urllib import urlencode
-    FileNotFoundError = IOError
-
 
 NETRC_MACHINE = 'mixcloud-api'
 API_ROOT = 'https://api.mixcloud.com'
@@ -33,7 +24,7 @@ def setup_yaml():
     yaml.SafeLoader.add_constructor(tag, construct_yaml_str)
 
 
-class MixcloudOauth(object):
+class MixcloudOauth:
     """
     Assists in the OAuth dance with Mixcloud to get an access token.
     """
@@ -71,7 +62,7 @@ class MixcloudOauth(object):
         return resp.json()['access_token']
 
 
-class Mixcloud(object):
+class Mixcloud:
 
     def __init__(self, api_root=API_ROOT, access_token=None):
         self.api_root = api_root
@@ -95,22 +86,22 @@ class Mixcloud(object):
         self.access_token = access_token
 
     def artist(self, key):
-        url = '{root}/artist/{key}'.format(root=self.api_root, key=key)
+        url = f'{self.api_root}/artist/{key}'
         r = requests.get(url)
         return Artist.from_json(r.json())
 
     def user(self, key):
-        url = '{root}/{user}'.format(root=self.api_root, user=key)
+        url = f'{self.api_root}/{key}'
         r = requests.get(url)
         return User.from_json(r.json(), m=self)
 
     def me(self):
-        url = '{root}/me/'.format(root=self.api_root)
+        url = f'{self.api_root}/me/'
         r = requests.get(url, {'access_token': self.access_token})
         return User.from_json(r.json(), m=self)
 
     def upload(self, cloudcast, mp3file, picturefile=None):
-        url = '{root}/upload/'.format(root=self.api_root)
+        url = f'{self.api_root}/upload/'
         payload = {'name': cloudcast.name,
                    'percentage_music': 100,
                    'description': cloudcast.description(),
@@ -151,7 +142,7 @@ class Artist(collections.namedtuple('_Artist', 'key name')):
         return Artist(slugify(artist), artist)
 
 
-class User(object):
+class User:
 
     def __init__(self, key, name, m=None):
         self.m = m
@@ -163,16 +154,13 @@ class User(object):
         return User(data['username'], data['name'], m=m)
 
     def cloudcast(self, key):
-        url = '{root}/{user}/{cc}'.format(root=self.m.api_root,
-                                          user=self.key,
-                                          cc=key)
+        url = f'{self.m.api_root}/{self.key}/{key}'
         r = requests.get(url)
         data = r.json()
         return Cloudcast.from_json(data)
 
     def cloudcasts(self, limit=None, offset=None):
-        url = '{root}/{user}/cloudcasts/'.format(root=self.m.api_root,
-                                                 user=self.key)
+        url = f'{self.m.api_root}/{self.key}/cloudcasts/'
         params = {}
         if limit is not None:
             params['limit'] = limit
@@ -183,7 +171,7 @@ class User(object):
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
 
 
-class Cloudcast(object):
+class Cloudcast:
 
     def __init__(self, key, name, sections, tags,
                  description, user, created_time, pictures=None, m=None):
@@ -219,9 +207,7 @@ class Cloudcast(object):
                          )
 
     def _load(self):
-        url = '{root}/{user}/{cc}'.format(root=self.m.api_root,
-                                          user=self.user.key,
-                                          cc=self.key)
+        url = f'{self.m.api_root}/{self.user.key}/{self.key}'
         r = requests.get(url)
         d = r.json()
         self._sections = Section.list_from_json(d['sections'])
@@ -284,8 +270,3 @@ class Track(collections.namedtuple('_Track', 'name artist')):
     @staticmethod
     def from_json(d):
         return Track(d['name'], Artist.from_json(d['artist']))
-
-
-def slugify(s):
-    s = unidecode.unidecode(s).lower()
-    return re.sub(r'\W+', '-', s)
