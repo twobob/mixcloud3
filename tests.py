@@ -1,21 +1,21 @@
 import csv
 import datetime
-import dateutil.tz
-import httpretty
-import mixcloud
 import io
 import unittest
+
+import dateutil.tz
+import httpretty
+
+import mixcloud
 from mixcloud.mock import MockServer, parse_headers, parse_multipart
 
 try:
-    from urllib.parse import parse_qs
-    from urllib.parse import urlsplit
     from unittest import mock
+    from urllib.parse import parse_qs, urlsplit
 except ImportError:
     # Python 2 fallback.
-    from urlparse import parse_qs
-    from urlparse import urlsplit
     import mock
+    from urlparse import parse_qs, urlsplit
 
 
 def parse_tracklist(s):

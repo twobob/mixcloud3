@@ -1,5 +1,5 @@
-from pip.req import parse_requirements
 import setuptools
+from pip.req import parse_requirements
 
 with open('README.rst') as f:
     readme = f.read()

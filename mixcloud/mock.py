@@ -1,7 +1,10 @@
 import datetime
-import httpretty
 import json
+
+import httpretty
+
 import mixcloud
+
 try:
     import urlparse
 except ImportError:
