@@ -2,15 +2,14 @@ import csv
 import datetime
 import io
 import unittest
+from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 import dateutil.tz
 import httpretty
 
 import mixcloud
 from mixcloud.mock import MockServer, parse_headers, parse_multipart
-
-from unittest import mock
-from urllib.parse import parse_qs, urlsplit
 
 
 def parse_tracklist(s):
