@@ -238,7 +238,7 @@ class Cloudcast:
     @staticmethod
     def from_yml(f, user):
         setup_yaml()
-        d = yaml.load(f)
+        d = yaml.load(f, Loader=yaml.FullLoader)
         name = d['title']
         sections = [Section.from_yml(s) for s in d['tracks']]
         key = slugify(name)
