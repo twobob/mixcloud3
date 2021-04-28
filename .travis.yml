@@ -6,6 +6,6 @@ install:
 python:
   - 2.7
   - 3.4
-script: "nosetests --with-coverage --cover-package=mixcloud"
+script: "nosetests --with-coverage --cover-package=mixcloud3"
 after_success:
   coveralls
