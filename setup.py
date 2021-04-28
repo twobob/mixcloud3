@@ -1,5 +1,4 @@
 import setuptools
-from pip.req import parse_requirements
 
 with open('README.rst') as f:
     readme = f.read()
@@ -7,18 +6,18 @@ with open('README.rst') as f:
 with open('HISTORY.rst') as f:
     history = f.read()
 
-setuptools.setup(name='mixcloud',
+setuptools.setup(name='mixcloud3',
                  version='0.4.0+dev',
-                 author='Etienne Millon',
-                 author_email='me@emillon.org',
-                 url="https://github.com/emillon/mixcloud",
+                 author='Etienne Millon, Ben Tappin, Marcin Baryłka',
+                 author_email='marcin.barylka@radiospacja.pl',
+                 url="https://github.com/Radiospacja/mixcloud3",
                  license='BSD',
-                 packages=['mixcloud'],
+                 packages=['mixcloud3'],
                  install_requires=[
                      'python-dateutil',
                      'requests',
-                     'unidecode',
                      'pyyaml',
+                     'python-slugify'
                  ],
                  description='Bindings for the mixcloud.com API',
                  long_description=readme + '\n\n' + history,
@@ -27,7 +26,6 @@ setuptools.setup(name='mixcloud',
                      'Intended Audience :: Developers',
                      'License :: OSI Approved :: BSD License',
                      'Operating System :: OS Independent',
-                     'Programming Language :: Python :: 2',
                      'Programming Language :: Python :: 3',
                      ],
                  )
