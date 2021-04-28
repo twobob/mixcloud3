@@ -8,8 +8,8 @@ from urllib.parse import parse_qs, urlsplit
 import dateutil.tz
 import httpretty
 
-import mixcloud
-from mixcloud.mock import MockServer, parse_headers, parse_multipart
+import mixcloud3 as mixcloud
+from mixcloud3.mock import MockServer, parse_headers, parse_multipart
 
 
 def parse_tracklist(s):

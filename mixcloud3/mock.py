@@ -4,7 +4,7 @@ from urllib import parse as urlparse
 
 import httpretty
 
-import mixcloud
+import mixcloud3 as mixcloud
 
 
 class MockServer:
