@@ -1,14 +1,9 @@
 import datetime
 import json
-
+from urllib import parse as urlparse
 import httpretty
 
 import mixcloud
-
-try:
-    import urlparse
-except ImportError:
-    import urllib.parse as urlparse
 
 
 class MockServer:
