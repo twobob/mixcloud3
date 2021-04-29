@@ -9,20 +9,20 @@ import dateutil.tz
 import httpretty
 
 import mixcloud3 as mixcloud
-from mixcloud3.mock import MockServer, parse_headers, parse_multipart
+from mixcloud3.mock import MockServer, parse_multipart, parse_headers
 
 
 def parse_tracklist(s):
     s = s.split('\n')[1:-1]
     reader = csv.reader(s, delimiter='|', quoting=csv.QUOTE_NONE)
-    t = [mixcloud.Section(int(l[0]),
-                          mixcloud.Track(l[1].strip(),
+    t = [mixcloud.Section(int(line[0]),
+                          mixcloud.Track(line[1].strip(),
                                          mixcloud.Artist(None,
-                                                         l[2].strip()
+                                                         line[2].strip()
                                                          )
                                          )
                           )
-         for l in reader]
+         for line in reader]
     return t
 
 
@@ -194,7 +194,7 @@ class TestMixcloud(unittest.TestCase):
         self.mc.i_am(spartacus)
         self.mc.mock_upload(self.m.me())
         mp3file = io.StringIO(u'\x00' * 30)
-        with open('example.yml') as f:
+        with open('mixcloud3/tests/example.yml') as f:
             self.m.upload_yml_file(f, mp3file)
         u = self.m.user('spartacus')
         ccs = u.cloudcasts()

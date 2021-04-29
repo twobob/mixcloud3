@@ -157,17 +157,17 @@ def parse_multipart(d):
     k = None
     v = None
     res = {}
-    for l in lines:
-        l = l.strip()
-        if l.startswith(b'Content-Disposition'):
-            parts = l.split(b'"')
+    for line in lines:
+        line = line.strip()
+        if line.startswith(b'Content-Disposition'):
+            parts = line.split(b'"')
             k = parts[1]
-        elif l.startswith(b'--'):
+        elif line.startswith(b'--'):
             pass
-        elif l == '':
+        elif line == '':
             pass
         else:
-            v = l
+            v = line
             if k is not None and v is not None:
                 if type(k) == bytes:
                     k = k.decode('utf-8')
@@ -177,10 +177,10 @@ def parse_multipart(d):
 
 
 def listify(d):
-    l = [None] * len(d)
+    result = [None] * len(d)
     for k, v in d.items():
-        l[k] = v
-    return l
+        result[k] = v
+    return result
 
 
 def make_section(s):

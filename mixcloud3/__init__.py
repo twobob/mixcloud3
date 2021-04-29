@@ -45,7 +45,7 @@ class MixcloudOauth:
             'client_id': self.client_id,
             'redirect_uri': self.redirect_uri,
         }
-        return f"{auth_url}?{urlencode(params)}"
+        return "{}?{}".format(auth_url, urlencode(params))
 
     def exchange_token(self, code):
         """
@@ -88,22 +88,22 @@ class Mixcloud:
         self.access_token = access_token
 
     def artist(self, key):
-        url = f'{self.api_root}/artist/{key}'
+        url = '{}/artist/{}'.format(self.api_root, key)
         r = requests.get(url)
         return Artist.from_json(r.json())
 
     def user(self, key):
-        url = f'{self.api_root}/{key}'
+        url = '{}/{}'.format(self.api_root, key)
         r = requests.get(url)
         return User.from_json(r.json(), m=self)
 
     def me(self):
-        url = f'{self.api_root}/me/'
+        url = '{}/me/'.format(self.api_root)
         r = requests.get(url, {'access_token': self.access_token})
         return User.from_json(r.json(), m=self)
 
     def upload(self, cloudcast, mp3file, picturefile=None):
-        url = f'{self.api_root}/upload/'
+        url = '{}/upload/'.format(self.api_root)
         payload = {'name': cloudcast.name,
                    'percentage_music': 100,
                    'description': cloudcast.description(),
@@ -130,7 +130,7 @@ class Mixcloud:
     def upload_yml_file(self, ymlfile, mp3file):
         user = self.me()
         cloudcast = Cloudcast.from_yml(ymlfile, user)
-        r = self.upload(cloudcast, mp3file)
+        _ = self.upload(cloudcast, mp3file)
 
 
 class Artist(collections.namedtuple('_Artist', 'key name')):
@@ -156,13 +156,13 @@ class User:
         return User(data['username'], data['name'], m=m)
 
     def cloudcast(self, key):
-        url = f'{self.m.api_root}/{self.key}/{key}'
+        url = '{}/{}/{}'.format(self.m.api_root, self.key, key)
         r = requests.get(url)
         data = r.json()
         return Cloudcast.from_json(data)
 
     def cloudcasts(self, limit=None, offset=None):
-        url = f'{self.m.api_root}/{self.key}/cloudcasts/'
+        url = '{}/{}/cloudcasts/'.format(self.m.api_root, self.key)
         params = {}
         if limit is not None:
             params['limit'] = limit
@@ -209,7 +209,7 @@ class Cloudcast:
                          )
 
     def _load(self):
-        url = f'{self.m.api_root}/{self.user.key}/{self.key}'
+        url = '{}/{}/{}'.format(self.m.api_root, self.user.key, self.key)
         r = requests.get(url)
         d = r.json()
         self._sections = Section.list_from_json(d['sections'])
