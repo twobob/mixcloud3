@@ -23,6 +23,7 @@ class APIError(Exception):
 
 
 def get(*args, **kwargs):
+    """Wrapper for requests.GET method"""
     response = requests.get(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -30,6 +31,7 @@ def get(*args, **kwargs):
 
 
 def post(*args, **kwargs):
+    """Wrapper for requests.POST method"""
     response = requests.post(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -167,10 +169,18 @@ class User:
         self.key = key
         self.name = name
 
+        self._metadata = self._get_metadata()
+
     @staticmethod
     def from_json(data, m=None):
         if 'username' in data and 'name' in data:
             return User(data['username'], data['name'], m=m)
+
+    def _get_metadata(self):
+        url = '{}/{}/?metadata=1'.format(self.m.api_root, self.name)
+        r = get(url)
+        data = r.json()
+        return data['metadata']['connections']
 
     def cloudcast(self, key):
         url = '{}/{}/{}'.format(self.m.api_root, self.key, key)
@@ -188,6 +198,23 @@ class User:
         r = get(url, params=params)
         data = r.json()
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
+
+    def playlists(self, limit=None, offset=None):
+        pl = self.metadata.get("playlists")
+        if pl:
+            playlists = get(pl)
+        return playlists
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+
+class Playlist:
+
+    @staticmethod
+    def get_all(user):
+        url = ''
 
 
 class Cloudcast:
