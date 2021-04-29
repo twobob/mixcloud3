@@ -11,9 +11,29 @@ NETRC_MACHINE = 'mixcloud-api'
 API_ROOT = 'https://api.mixcloud.com'
 OAUTH_ROOT = 'https://www.mixcloud.com/oauth'
 
+API_ERROR_MESSAGE = "Mixcloud {} API returned HTTP code {}"
+
 
 class MixcloudOauthError(Exception):
     pass
+
+
+class APIError(Exception):
+    pass
+
+
+def get(*args, **kwargs):
+    response = requests.get(*args, **kwargs)
+    if response.status_code == 200:
+        return response
+    raise APIError(API_ERROR_MESSAGE.format('GET', response.status_code))
+
+
+def post(*args, **kwargs):
+    response = requests.post(*args, **kwargs)
+    if response.status_code == 200:
+        return response
+    raise APIError(API_ERROR_MESSAGE.format('POST', response.status_code))
 
 
 def setup_yaml():
@@ -89,17 +109,17 @@ class Mixcloud:
 
     def artist(self, key):
         url = '{}/artist/{}'.format(self.api_root, key)
-        r = requests.get(url)
+        r = get(url)
         return Artist.from_json(r.json())
 
     def user(self, key):
         url = '{}/{}'.format(self.api_root, key)
-        r = requests.get(url)
+        r = get(url)
         return User.from_json(r.json(), m=self)
 
     def me(self):
         url = '{}/me/'.format(self.api_root)
-        r = requests.get(url, {'access_token': self.access_token})
+        r = get(url, {'access_token': self.access_token})
         return User.from_json(r.json(), m=self)
 
     def upload(self, cloudcast, mp3file, picturefile=None):
@@ -120,11 +140,7 @@ class Mixcloud:
         if picturefile is not None:
             files['picture'] = picturefile
 
-        r = requests.post(url,
-                          data=payload,
-                          params={'access_token': self.access_token},
-                          files=files,
-                          )
+        r = post(url, data=payload, params={'access_token': self.access_token}, files=files)
         return r
 
     def upload_yml_file(self, ymlfile, mp3file):
@@ -153,11 +169,12 @@ class User:
 
     @staticmethod
     def from_json(data, m=None):
-        return User(data['username'], data['name'], m=m)
+        if 'username' in data and 'name' in data:
+            return User(data['username'], data['name'], m=m)
 
     def cloudcast(self, key):
         url = '{}/{}/{}'.format(self.m.api_root, self.key, key)
-        r = requests.get(url)
+        r = get(url)
         data = r.json()
         return Cloudcast.from_json(data)
 
@@ -168,7 +185,7 @@ class User:
             params['limit'] = limit
         if offset is not None:
             params['offset'] = offset
-        r = requests.get(url, params=params)
+        r = get(url, params=params)
         data = r.json()
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
 
@@ -210,7 +227,7 @@ class Cloudcast:
 
     def _load(self):
         url = '{}/{}/{}'.format(self.m.api_root, self.user.key, self.key)
-        r = requests.get(url)
+        r = get(url)
         d = r.json()
         self._sections = Section.list_from_json(d['sections'])
         self._description = d['description']
