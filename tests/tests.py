@@ -194,7 +194,7 @@ class TestMixcloud(unittest.TestCase):
         self.mc.i_am(spartacus)
         self.mc.mock_upload(self.m.me())
         mp3file = io.StringIO(u'\x00' * 30)
-        with open('mixcloud3/tests/example.yml') as f:
+        with open('tests/example.yml') as f:
             self.m.upload_yml_file(f, mp3file)
         u = self.m.user('spartacus')
         ccs = u.cloudcasts()
