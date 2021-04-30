@@ -1,5 +1,8 @@
 import collections
 import netrc
+from dataclasses import dataclass
+import datetime
+from typing import Optional, Dict, List
 from urllib.parse import urlencode
 
 import dateutil.parser
@@ -7,11 +10,15 @@ import requests
 import yaml
 from slugify import slugify
 
+from utils import logger
+
 NETRC_MACHINE = 'mixcloud-api'
 API_ROOT = 'https://api.mixcloud.com'
 OAUTH_ROOT = 'https://www.mixcloud.com/oauth'
 
 API_ERROR_MESSAGE = "Mixcloud {} API returned HTTP code {}"
+
+log = logger(__name__)
 
 
 class MixcloudOauthError(Exception):
@@ -151,7 +158,11 @@ class Mixcloud:
         _ = self.upload(cloudcast, mp3file)
 
 
-class Artist(collections.namedtuple('_Artist', 'key name')):
+@dataclass
+class Artist:
+
+    key: str
+    name: str
 
     @staticmethod
     def from_json(data):
@@ -162,19 +173,25 @@ class Artist(collections.namedtuple('_Artist', 'key name')):
         return Artist(slugify(artist), artist)
 
 
+@dataclass
 class User:
 
-    def __init__(self, key, name, m=None):
-        self.m = m
-        self.key = key
-        self.name = name
+    key: str
+    name: str
+    m: Mixcloud
 
-        self._metadata = self._get_metadata()
+    _metadata: Optional[Dict] = None
 
     @staticmethod
     def from_json(data, m=None):
         if 'username' in data and 'name' in data:
             return User(data['username'], data['name'], m=m)
+
+    def __repr__(self):
+        return "<User:{}>".format(self.name)
+
+    def __str__(self):
+        return repr(self)
 
     def _get_metadata(self):
         url = '{}/{}/?metadata=1'.format(self.m.api_root, self.name)
@@ -201,35 +218,58 @@ class User:
 
     def playlists(self, limit=None, offset=None):
         pl = self.metadata.get("playlists")
+        params = {}
+        if limit is not None:
+            params['limit'] = limit
+        if offset is not None:
+            params['offset'] = offset
         if pl:
-            playlists = get(pl)
-        return playlists
+            r = get(pl, params=params)
+            data = r.json()
+        return [Playlist.from_json(pl) for pl in data['data']]
 
     @property
     def metadata(self):
+        if not self._metadata:
+            self._metadata = self._get_metadata()
         return self._metadata
 
 
+@dataclass
 class Playlist:
 
+    key: str
+    url: str
+    name: str
+    owner: str
+    slug: str
+    cloudcast_count: int = 0
+    created_time: Optional[datetime.datetime] = None
+    updated_time: Optional[datetime.datetime] = None
+
+    def all(self):
+        pass
+
+    def get(self, slug):
+        pass
+
     @staticmethod
-    def get_all(user):
-        url = ''
+    def from_json(d):
+        return Playlist(d['key'], d['url'], d['name'], User.from_json(d['owner']), d['slug'])
 
 
+@dataclass
 class Cloudcast:
 
-    def __init__(self, key, name, sections, tags,
-                 description, user, created_time, pictures=None, m=None):
-        self.key = key
-        self.name = name
-        self.tags = tags
-        self._description = description
-        self._sections = sections
-        self.user = user
-        self.created_time = created_time
-        self.m = m
-        self.pictures = pictures
+    key: str
+    name: str
+    tags: List
+    _description: str
+    _sections: List['Section']
+    user: User
+    created_time: datetime.datetime
+    pictures: Optional
+    m: Optional[Mixcloud]
 
     @staticmethod
     def from_json(d, m=None):
@@ -311,8 +351,19 @@ class Section(collections.namedtuple('_Section', 'start_time track')):
         return Section(d['start'], Track(track, artist))
 
 
-class Track(collections.namedtuple('_Track', 'name artist')):
+@dataclass
+class Track:
+
+    name: str
+    artist: Artist
 
     @staticmethod
     def from_json(d):
         return Track(d['name'], Artist.from_json(d['artist']))
+
+
+@dataclass
+class Tag:
+    key: str
+    url: str
+    name: str
