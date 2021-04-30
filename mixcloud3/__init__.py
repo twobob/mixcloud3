@@ -7,11 +7,15 @@ import requests
 import yaml
 from slugify import slugify
 
+from utils import logger
+
 NETRC_MACHINE = 'mixcloud-api'
 API_ROOT = 'https://api.mixcloud.com'
 OAUTH_ROOT = 'https://www.mixcloud.com/oauth'
 
 API_ERROR_MESSAGE = "Mixcloud {} API returned HTTP code {}"
+
+log = logger(__name__)
 
 
 class MixcloudOauthError(Exception):
@@ -169,7 +173,8 @@ class User:
         self.key = key
         self.name = name
 
-        self._metadata = self._get_metadata()
+        self._metadata = None
+        log.debug(f'self._metadata: {self._metadata}')
 
     @staticmethod
     def from_json(data, m=None):
@@ -201,20 +206,30 @@ class User:
 
     def playlists(self, limit=None, offset=None):
         pl = self.metadata.get("playlists")
+        params = {}
+        if limit is not None:
+            params['limit'] = limit
+        if offset is not None:
+            params['offset'] = offset
         if pl:
-            playlists = get(pl)
-        return playlists
+            r = get(pl, params=params)
+            data = r.json()
+        return []
 
     @property
     def metadata(self):
+        if not self._metadata:
+            log.debug('first use of metadata')
+            self._metadata = self._get_metadata()
+        log.debug(f'self._metadata: {self._metadata}')
         return self._metadata
 
 
-class Playlist:
+class Playlist(collections.namedtuple('_Playlist', ['key', 'url', 'owner', 'slug'])):
 
     @staticmethod
-    def get_all(user):
-        url = ''
+    def from_json(d):
+        pass
 
 
 class Cloudcast:
