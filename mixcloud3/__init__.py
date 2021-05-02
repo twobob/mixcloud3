@@ -1,15 +1,14 @@
 import collections
+import datetime
 import netrc
 from dataclasses import dataclass
-import datetime
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import dateutil.parser
 import requests
 import yaml
 from slugify import slugify
-
 from utils import logger
 
 NETRC_MACHINE = 'mixcloud-api'
@@ -226,7 +225,8 @@ class User:
         if pl:
             r = get(pl, params=params)
             data = r.json()
-        return [Playlist.from_json(pl) for pl in data['data']]
+            return [Playlist.from_json(pl) for pl in data['data']]
+        return []  # no playlists available
 
     @property
     def metadata(self):
