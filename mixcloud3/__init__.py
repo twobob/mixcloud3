@@ -262,13 +262,25 @@ class Playlist:
 class Cloudcast:
 
     key: str
+    url: str
     name: str
-    tags: List
+    tags: List['Tag']
+    created_time: datetime.datetime
+    updated_time: datetime.datetime
+    play_count: int
+    favorite_count: int
+    comment_count: int
+    listener_count: int
+    repost_count: int
+    pictures: Dict
+    slug: int
+    user: User
+    hidden_stats: bool
+    audio_length: int
+
     _description: str
     _sections: List['Section']
-    user: User
-    created_time: datetime.datetime
-    pictures: Optional
+
     m: Optional[Mixcloud]
 
     @staticmethod
@@ -278,19 +290,32 @@ class Cloudcast:
         else:
             sections = None
         desc = d.get('description')
-        tags = [t['name'] for t in d['tags']]
+        tags = Tag.list_from_json(d['tags'])
         user = User.from_json(d['user'])
         created_time = dateutil.parser.parse(d['created_time'])
-        return Cloudcast(d['slug'],
-                         d['name'],
-                         sections,
-                         tags,
-                         desc,
-                         user,
-                         created_time,
-                         pictures=d.get('pictures'),
-                         m=m,
-                         )
+        updated_time = dateutil.parser.parse(d['updated_time'])
+        pictures = d.get('pictures')
+        return Cloudcast(
+            d['key'],
+            d['url'],
+            d['name'],
+            tags,
+            created_time,
+            updated_time,
+            d.get('play_count'),
+            d.get('favorite_count'),
+            d.get('comment_count'),
+            d.get('listener_count'),
+            d.get('repost_count'),
+            pictures,
+            d['slug'],
+            user,
+            d.get('hidden_stats'),
+            d['audio_length'],
+            desc,
+            sections,
+            m
+        )
 
     def _load(self):
         url = '{}/{}/{}'.format(self.m.api_root, self.user.key, self.key)
@@ -299,6 +324,7 @@ class Cloudcast:
         self._sections = Section.list_from_json(d['sections'])
         self._description = d['description']
 
+    @property
     def sections(self):
         """
         Depending on the data available when the instance was created,
@@ -308,6 +334,7 @@ class Cloudcast:
             self._load()
         return self._sections
 
+    @property
     def description(self):
         """
         May hit server. See Cloudcast.sections
@@ -316,6 +343,7 @@ class Cloudcast:
             self._load()
         return self._description
 
+    @property
     def picture(self):
         return self.pictures['large']
 
@@ -334,6 +362,7 @@ class Cloudcast:
         return c
 
 
+# TODO: refactorize to dataclass
 class Section(collections.namedtuple('_Section', 'start_time track')):
 
     @staticmethod
@@ -367,3 +396,11 @@ class Tag:
     key: str
     url: str
     name: str
+
+    @staticmethod
+    def from_json(d):
+        return Tag(d['key'], d['url'], d['name'])
+
+    @staticmethod
+    def list_from_json(d):
+        return [Tag.from_json(t) for t in d]
