@@ -55,6 +55,29 @@ def setup_yaml():
     yaml.SafeLoader.add_constructor(tag, construct_yaml_str)
 
 
+def get_multi(url, limit=None, offset=None):
+    params = {}
+    if limit is not None:
+        params['limit'] = limit
+    if offset is not None:
+        params['offset'] = offset
+    r = get(url, params=params)
+    return r.json()
+
+
+def get_traverse(url):
+    while True:
+        json = get_multi(url)
+        data = json['data']
+        paging = json['paging']
+        if 'next' in paging:
+            url = json['paging']['next']
+            for entry in data:
+                yield entry
+        else:
+            break
+
+
 class MixcloudOauth:
     """
     Assists in the OAuth dance with Mixcloud to get an access token.
@@ -206,26 +229,18 @@ class User:
         return Cloudcast.from_json(data)
 
     def cloudcasts(self, limit=None, offset=None):
-        url = '{}/{}/cloudcasts/'.format(self.m.api_root, self.key)
-        params = {}
-        if limit is not None:
-            params['limit'] = limit
-        if offset is not None:
-            params['offset'] = offset
-        r = get(url, params=params)
-        data = r.json()
+        data = get_multi('{}/{}/cloudcasts/'.format(self.m.api_root, self.key), limit, offset)
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
+
+    def playlist(self, key):
+        r = get('{}/{}/playlists/{}'.format(self.m.api_root, self.key, key))
+        data = r.json()
+        return Playlist.from_json(data)
 
     def playlists(self, limit=None, offset=None):
         pl = self.metadata.get("playlists")
-        params = {}
-        if limit is not None:
-            params['limit'] = limit
-        if offset is not None:
-            params['offset'] = offset
         if pl:
-            r = get(pl, params=params)
-            data = r.json()
+            data = get_multi(pl, limit, offset)
             return [Playlist.from_json(pl) for pl in data['data']]
         return []  # no playlists available
 
@@ -248,15 +263,26 @@ class Playlist:
     created_time: Optional[datetime.datetime] = None
     updated_time: Optional[datetime.datetime] = None
 
-    def all(self):
-        pass
-
-    def get(self, slug):
-        pass
+    def cloudcasts(self, limit=None, offset=None, all=False):
+        url = '{}{}cloudcasts'.format(API_ROOT, self.key)
+        if all:
+            data = get_multi(url, limit=self.cloudcast_count)
+        else:
+            data = get_multi(url, limit, offset)
+        return [Cloudcast.from_json(d) for d in data['data']]
 
     @staticmethod
     def from_json(d):
-        return Playlist(d['key'], d['url'], d['name'], User.from_json(d['owner']), d['slug'])
+        return Playlist(
+            d['key'],
+            d['url'],
+            d['name'],
+            User.from_json(d['owner']),
+            d['slug'],
+            d['cloudcast_count'],
+            dateutil.parser.parse(d['created_time']),
+            dateutil.parser.parse(d['updated_time'])
+        )
 
 
 @dataclass
@@ -405,3 +431,9 @@ class Tag:
     @staticmethod
     def list_from_json(d):
         return [Tag.from_json(t) for t in d]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
