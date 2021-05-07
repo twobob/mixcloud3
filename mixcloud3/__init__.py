@@ -65,19 +65,6 @@ def get_multi(url, limit=None, offset=None):
     return r.json()
 
 
-def get_traverse(url):
-    while True:
-        json = get_multi(url)
-        data = json['data']
-        paging = json['paging']
-        if 'next' in paging:
-            url = json['paging']['next']
-            for entry in data:
-                yield entry
-        else:
-            break
-
-
 class MixcloudOauth:
     """
     Assists in the OAuth dance with Mixcloud to get an access token.
@@ -201,7 +188,7 @@ class User:
 
     key: str
     name: str
-    m: Mixcloud
+    m: Optional[Mixcloud] = None
 
     _metadata: Optional[Dict] = None
 
@@ -389,7 +376,7 @@ class Cloudcast:
         return c
 
 
-# TODO: refactorize to dataclass
+# TODO: refactor to dataclass
 class Section(collections.namedtuple('_Section', 'start_time track')):
 
     @staticmethod
