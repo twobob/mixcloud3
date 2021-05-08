@@ -278,24 +278,24 @@ class Cloudcast:
     key: str
     url: str
     name: str
-    tags: List['Tag']
-    created_time: datetime.datetime
-    updated_time: datetime.datetime
-    play_count: int
-    favorite_count: int
-    comment_count: int
-    listener_count: int
-    repost_count: int
-    pictures: Dict
-    slug: int
-    user: User
-    hidden_stats: bool
-    audio_length: int
+    tags: Optional[List['Tag']] = None
+    created_time: Optional[datetime.datetime] = None
+    updated_time: Optional[datetime.datetime] = None
+    play_count: Optional[int] = 0
+    favorite_count: Optional[int] = 0
+    comment_count: Optional[int] = 0
+    listener_count: Optional[int] = 0
+    repost_count: Optional[int] = 0
+    pictures: Optional[Dict] = None
+    slug: Optional[int] = None
+    user: Optional[User] = None
+    hidden_stats: Optional[bool] = None
+    audio_length: Optional[int] = 0
 
-    _description: str
-    _sections: List['Section']
+    _description: Optional[str] = ''
+    _sections: Optional[List['Section']] = None
 
-    m: Optional[Mixcloud]
+    m: Optional[Mixcloud] = None
 
     @staticmethod
     def from_json(d, m=None):
