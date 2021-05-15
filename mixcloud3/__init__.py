@@ -1,5 +1,8 @@
 import collections
+import datetime
 import netrc
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import dateutil.parser
@@ -7,11 +10,15 @@ import requests
 import yaml
 from slugify import slugify
 
+from utils import logger
+
 NETRC_MACHINE = 'mixcloud-api'
 API_ROOT = 'https://api.mixcloud.com'
 OAUTH_ROOT = 'https://www.mixcloud.com/oauth'
 
 API_ERROR_MESSAGE = "Mixcloud {} API returned HTTP code {}"
+
+log = logger(__name__)
 
 
 class MixcloudOauthError(Exception):
@@ -23,6 +30,7 @@ class APIError(Exception):
 
 
 def get(*args, **kwargs):
+    """Wrapper for requests.GET method"""
     response = requests.get(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -30,6 +38,7 @@ def get(*args, **kwargs):
 
 
 def post(*args, **kwargs):
+    """Wrapper for requests.POST method"""
     response = requests.post(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -44,6 +53,16 @@ def setup_yaml():
     tag = u'tag:yaml.org,2002:str'
     yaml.Loader.add_constructor(tag, construct_yaml_str)
     yaml.SafeLoader.add_constructor(tag, construct_yaml_str)
+
+
+def get_multi(url, limit=None, offset=None):
+    params = {}
+    if limit is not None:
+        params['limit'] = limit
+    if offset is not None:
+        params['offset'] = offset
+    r = get(url, params=params)
+    return r.json()
 
 
 class MixcloudOauth:
@@ -149,7 +168,11 @@ class Mixcloud:
         _ = self.upload(cloudcast, mp3file)
 
 
-class Artist(collections.namedtuple('_Artist', 'key name')):
+@dataclass
+class Artist:
+
+    key: str
+    name: str
 
     @staticmethod
     def from_json(data):
@@ -160,17 +183,31 @@ class Artist(collections.namedtuple('_Artist', 'key name')):
         return Artist(slugify(artist), artist)
 
 
+@dataclass
 class User:
 
-    def __init__(self, key, name, m=None):
-        self.m = m
-        self.key = key
-        self.name = name
+    key: str
+    name: str
+    m: Optional[Mixcloud] = None
+
+    _metadata: Optional[Dict] = None
 
     @staticmethod
     def from_json(data, m=None):
         if 'username' in data and 'name' in data:
             return User(data['username'], data['name'], m=m)
+
+    def __repr__(self):
+        return "<User:{}>".format(self.name)
+
+    def __str__(self):
+        return repr(self)
+
+    def _get_metadata(self):
+        url = '{}/{}/?metadata=1'.format(self.m.api_root, self.name)
+        r = get(url)
+        data = r.json()
+        return data['metadata']['connections']
 
     def cloudcast(self, key):
         url = '{}/{}/{}'.format(self.m.api_root, self.key, key)
@@ -179,30 +216,86 @@ class User:
         return Cloudcast.from_json(data)
 
     def cloudcasts(self, limit=None, offset=None):
-        url = '{}/{}/cloudcasts/'.format(self.m.api_root, self.key)
-        params = {}
-        if limit is not None:
-            params['limit'] = limit
-        if offset is not None:
-            params['offset'] = offset
-        r = get(url, params=params)
-        data = r.json()
+        data = get_multi('{}/{}/cloudcasts/'.format(self.m.api_root, self.key), limit, offset)
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
 
+    def playlist(self, key):
+        r = get('{}/{}/playlists/{}'.format(self.m.api_root, self.key, key))
+        data = r.json()
+        return Playlist.from_json(data)
 
+    def playlists(self, limit=None, offset=None):
+        pl = self.metadata.get("playlists")
+        if pl:
+            data = get_multi(pl, limit, offset)
+            return [Playlist.from_json(pl) for pl in data['data']]
+        return []  # no playlists available
+
+    @property
+    def metadata(self):
+        if not self._metadata:
+            self._metadata = self._get_metadata()
+        return self._metadata
+
+
+@dataclass
+class Playlist:
+
+    key: str
+    url: str
+    name: str
+    owner: str
+    slug: str
+    cloudcast_count: int = 0
+    created_time: Optional[datetime.datetime] = None
+    updated_time: Optional[datetime.datetime] = None
+
+    def cloudcasts(self, limit=None, offset=None, all=False):
+        url = '{}{}cloudcasts'.format(API_ROOT, self.key)
+        if all:
+            data = get_multi(url, limit=self.cloudcast_count)
+        else:
+            data = get_multi(url, limit, offset)
+        return [Cloudcast.from_json(d) for d in data['data']]
+
+    @staticmethod
+    def from_json(d):
+        return Playlist(
+            d['key'],
+            d['url'],
+            d['name'],
+            User.from_json(d['owner']),
+            d['slug'],
+            d['cloudcast_count'],
+            dateutil.parser.parse(d['created_time']),
+            dateutil.parser.parse(d['updated_time'])
+        )
+
+
+@dataclass
 class Cloudcast:
 
-    def __init__(self, key, name, sections, tags,
-                 description, user, created_time, pictures=None, m=None):
-        self.key = key
-        self.name = name
-        self.tags = tags
-        self._description = description
-        self._sections = sections
-        self.user = user
-        self.created_time = created_time
-        self.m = m
-        self.pictures = pictures
+    key: str
+    url: str
+    name: str
+    tags: Optional[List['Tag']] = None
+    created_time: Optional[datetime.datetime] = None
+    updated_time: Optional[datetime.datetime] = None
+    play_count: Optional[int] = 0
+    favorite_count: Optional[int] = 0
+    comment_count: Optional[int] = 0
+    listener_count: Optional[int] = 0
+    repost_count: Optional[int] = 0
+    pictures: Optional[Dict] = None
+    slug: Optional[int] = None
+    user: Optional[User] = None
+    hidden_stats: Optional[bool] = None
+    audio_length: Optional[int] = 0
+
+    _description: Optional[str] = ''
+    _sections: Optional[List['Section']] = None
+
+    m: Optional[Mixcloud] = None
 
     @staticmethod
     def from_json(d, m=None):
@@ -211,19 +304,32 @@ class Cloudcast:
         else:
             sections = None
         desc = d.get('description')
-        tags = [t['name'] for t in d['tags']]
+        tags = Tag.list_from_json(d['tags'])
         user = User.from_json(d['user'])
         created_time = dateutil.parser.parse(d['created_time'])
-        return Cloudcast(d['slug'],
-                         d['name'],
-                         sections,
-                         tags,
-                         desc,
-                         user,
-                         created_time,
-                         pictures=d.get('pictures'),
-                         m=m,
-                         )
+        updated_time = dateutil.parser.parse(d['updated_time'])
+        pictures = d.get('pictures')
+        return Cloudcast(
+            d['key'],
+            d['url'],
+            d['name'],
+            tags,
+            created_time,
+            updated_time,
+            d.get('play_count'),
+            d.get('favorite_count'),
+            d.get('comment_count'),
+            d.get('listener_count'),
+            d.get('repost_count'),
+            pictures,
+            d['slug'],
+            user,
+            d.get('hidden_stats'),
+            d['audio_length'],
+            desc,
+            sections,
+            m
+        )
 
     def _load(self):
         url = '{}/{}/{}'.format(self.m.api_root, self.user.key, self.key)
@@ -232,6 +338,7 @@ class Cloudcast:
         self._sections = Section.list_from_json(d['sections'])
         self._description = d['description']
 
+    @property
     def sections(self):
         """
         Depending on the data available when the instance was created,
@@ -241,6 +348,7 @@ class Cloudcast:
             self._load()
         return self._sections
 
+    @property
     def description(self):
         """
         May hit server. See Cloudcast.sections
@@ -249,6 +357,7 @@ class Cloudcast:
             self._load()
         return self._description
 
+    @property
     def picture(self):
         return self.pictures['large']
 
@@ -267,6 +376,7 @@ class Cloudcast:
         return c
 
 
+# TODO: refactor to dataclass
 class Section(collections.namedtuple('_Section', 'start_time track')):
 
     @staticmethod
@@ -284,8 +394,33 @@ class Section(collections.namedtuple('_Section', 'start_time track')):
         return Section(d['start'], Track(track, artist))
 
 
-class Track(collections.namedtuple('_Track', 'name artist')):
+@dataclass
+class Track:
+
+    name: str
+    artist: Artist
 
     @staticmethod
     def from_json(d):
         return Track(d['name'], Artist.from_json(d['artist']))
+
+
+@dataclass
+class Tag:
+    key: str
+    url: str
+    name: str
+
+    @staticmethod
+    def from_json(d):
+        return Tag(d['key'], d['url'], d['name'])
+
+    @staticmethod
+    def list_from_json(d):
+        return [Tag.from_json(t) for t in d]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
