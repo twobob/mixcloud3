@@ -6,9 +6,9 @@ unreleased
 
 0.6.0
 -----
-** release date:** 2021-04-15
+**release date:** 2021-04-15
 
-* Add playlist functionaluty (#3, #4)
+* Add playlist functionality (#3, #4)
 
 
 0.5.0
