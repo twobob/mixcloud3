@@ -246,7 +246,7 @@ class Playlist:
     name: str
     owner: str
     slug: str
-    cloudcast_count: int = 0
+    cloudcast_count: Optional[int] = 0
     created_time: Optional[datetime.datetime] = None
     updated_time: Optional[datetime.datetime] = None
 
@@ -266,9 +266,9 @@ class Playlist:
             d['name'],
             User.from_json(d['owner']),
             d['slug'],
-            d['cloudcast_count'],
-            dateutil.parser.parse(d['created_time']),
-            dateutil.parser.parse(d['updated_time'])
+            d.get('cloudcast_count', 0),
+            dateutil.parser.parse(d['created_time']) if 'created_time' in d else None,
+            dateutil.parser.parse(d['updated_time']) if 'updated_time' in d else None
         )
 
 
