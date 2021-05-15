@@ -4,6 +4,20 @@ Changelog
 unreleased
 ----------
 
+0.6.0
+-----
+** release date:** 2021-04-15
+
+* Add playlist functionaluty (#3, #4)
+
+
+0.5.0
+-----
+**release date:** 2021-04-26
+
+* add Git Actions CI
+* Refactor to Python3.7+, abandon Python 2 (#1, #2)
+
 0.4.0
 -----
 **release date:** 2015-10-27
