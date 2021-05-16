@@ -349,7 +349,7 @@ class Cloudcast:
         )
 
     def _load(self):
-        url = '{}/{}/{}'.format(self.m.api_root, self.user.key, self.key)
+        url = '{}{}'.format(self.m.api_root, self.key)
         r = get(url)
         d = r.json()
         self._sections = Section.list_from_json(d['sections'])
