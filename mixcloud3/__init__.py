@@ -225,7 +225,7 @@ class User:
         data = r.json()
         return Cloudcast.from_json(data)
 
-    def cloudcasts(self, limit=None, offset=None):
+    def cloudcasts(self, limit=None, offset=None, all=False):
         data = get_many('{}/{}/cloudcasts/'.format(self.m.api_root, self.key), limit, offset)
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
 
@@ -262,10 +262,11 @@ class Playlist:
     def cloudcasts(self, limit=None, offset=None, all=False):
         url = '{}{}cloudcasts'.format(API_ROOT, self.key)
         if all:
-            data = get_many(url, limit=self.cloudcast_count)
+            data = get_all(url)
         else:
-            data = get_many(url, limit, offset)
-        return [Cloudcast.from_json(d) for d in data['data']]
+            data = get_many(url, limit=limit, offset=offset)
+        for cast in data:
+            yield Cloudcast.from_json(cast)
 
     @staticmethod
     def from_json(d):
