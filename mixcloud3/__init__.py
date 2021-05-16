@@ -30,7 +30,7 @@ class APIError(Exception):
 
 
 def get(*args, **kwargs):
-    """Wrapper for requests.GET method"""
+    """A wrapper for requests.GET method"""
     response = requests.get(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -38,7 +38,7 @@ def get(*args, **kwargs):
 
 
 def post(*args, **kwargs):
-    """Wrapper for requests.POST method"""
+    """A wrapper for requests.POST method"""
     response = requests.post(*args, **kwargs)
     if response.status_code == 200:
         return response
@@ -55,7 +55,8 @@ def setup_yaml():
     yaml.SafeLoader.add_constructor(tag, construct_yaml_str)
 
 
-def get_multi(url, limit=None, offset=None):
+def get_many(url, limit=None, offset=None):
+    """Gets many records from Mixcloud API"""
     params = {}
     if limit is not None:
         params['limit'] = limit
@@ -63,6 +64,15 @@ def get_multi(url, limit=None, offset=None):
         params['offset'] = offset
     r = get(url, params=params)
     return r.json()
+
+
+def get_all(url):
+    """A wrapper for `get_many()`: a generator getting and iterating through all results"""
+    data = get_many(url, limit=50)
+    yield from data['data']
+    while 'next' in data['paging']:
+        data = get_many(data['paging']['next'])
+        yield from data['data']
 
 
 class MixcloudOauth:
@@ -216,7 +226,7 @@ class User:
         return Cloudcast.from_json(data)
 
     def cloudcasts(self, limit=None, offset=None):
-        data = get_multi('{}/{}/cloudcasts/'.format(self.m.api_root, self.key), limit, offset)
+        data = get_many('{}/{}/cloudcasts/'.format(self.m.api_root, self.key), limit, offset)
         return [Cloudcast.from_json(d, m=self.m) for d in data['data']]
 
     def playlist(self, key):
@@ -224,12 +234,11 @@ class User:
         data = r.json()
         return Playlist.from_json(data)
 
-    def playlists(self, limit=None, offset=None):
+    def playlists(self):
         pl = self.metadata.get("playlists")
         if pl:
-            data = get_multi(pl, limit, offset)
-            return [Playlist.from_json(pl) for pl in data['data']]
-        return []  # no playlists available
+            for playlist in get_all(pl):
+                yield Playlist.from_json(playlist)
 
     @property
     def metadata(self):
@@ -253,13 +262,15 @@ class Playlist:
     def cloudcasts(self, limit=None, offset=None, all=False):
         url = '{}{}cloudcasts'.format(API_ROOT, self.key)
         if all:
-            data = get_multi(url, limit=self.cloudcast_count)
+            data = get_many(url, limit=self.cloudcast_count)
         else:
-            data = get_multi(url, limit, offset)
+            data = get_many(url, limit, offset)
         return [Cloudcast.from_json(d) for d in data['data']]
 
     @staticmethod
     def from_json(d):
+        ctime = dateutil.parser.parse(d['created_time']) if 'created_time' in d else None
+        mtime = dateutil.parser.parse(d['updated_time']) if 'updated_time' in d else None
         return Playlist(
             d['key'],
             d['url'],
@@ -267,8 +278,8 @@ class Playlist:
             User.from_json(d['owner']),
             d['slug'],
             d.get('cloudcast_count', 0),
-            dateutil.parser.parse(d['created_time']) if 'created_time' in d else None,
-            dateutil.parser.parse(d['updated_time']) if 'updated_time' in d else None
+            ctime,
+            mtime
         )
 
 
