@@ -184,6 +184,8 @@ class Artist:
     key: str
     name: str
 
+    m: Optional[Mixcloud] = None
+
     @staticmethod
     def from_json(data):
         return Artist(data['slug'], data['name'])
@@ -232,7 +234,7 @@ class User:
     def playlist(self, key):
         r = get('{}/{}/playlists/{}'.format(self.m.api_root, self.key, key))
         data = r.json()
-        return Playlist.from_json(data)
+        return Playlist.from_json(data, m=self.m)
 
     def playlists(self):
         pl = self.metadata.get("playlists")
@@ -259,6 +261,8 @@ class Playlist:
     created_time: Optional[datetime.datetime] = None
     updated_time: Optional[datetime.datetime] = None
 
+    m: Optional[Mixcloud] = None
+
     def cloudcasts(self, limit=None, offset=None, all=False):
         url = '{}{}cloudcasts'.format(API_ROOT, self.key)
         if all:
@@ -266,10 +270,10 @@ class Playlist:
         else:
             data = get_many(url, limit=limit, offset=offset)
         for cast in data:
-            yield Cloudcast.from_json(cast)
+            yield Cloudcast.from_json(cast, m=self.m)
 
     @staticmethod
-    def from_json(d):
+    def from_json(d, m=None):
         ctime = dateutil.parser.parse(d['created_time']) if 'created_time' in d else None
         mtime = dateutil.parser.parse(d['updated_time']) if 'updated_time' in d else None
         return Playlist(
@@ -280,7 +284,8 @@ class Playlist:
             d['slug'],
             d.get('cloudcast_count', 0),
             ctime,
-            mtime
+            mtime,
+            m=m
         )
 
 
