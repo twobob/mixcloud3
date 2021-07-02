@@ -70,7 +70,7 @@ def get_all(url):
     """A wrapper for `get_many()`: a generator getting and iterating through all results"""
     data = get_many(url, limit=50)
     yield from data['data']
-    while 'next' in data['paging']:
+    while 'paging' in data and 'next' in data['paging']:
         data = get_many(data['paging']['next'])
         yield from data['data']
 
@@ -393,8 +393,11 @@ class Cloudcast:
         return c
 
 
-# TODO: refactor to dataclass
-class Section(collections.namedtuple('_Section', 'start_time track')):
+@dataclass
+class Section:
+
+    start_time: datetime
+    track: 'Track'
 
     @staticmethod
     def from_json(d):
