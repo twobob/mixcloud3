@@ -8,7 +8,6 @@ import mixcloud3 as mixcloud
 
 
 class MockServer:
-
     def __init__(self, api_root=None, oauth_root=None):
         if api_root is None:
             api_root = mixcloud.API_ROOT
@@ -19,69 +18,75 @@ class MockServer:
 
     def i_am(self, user):
         assert httpretty.is_enabled()
-        target_url = '{root}/{key}'.format(root=self.api_root, key=user.key)
+        target_url = "{root}/{key}".format(root=self.api_root, key=user.key)
         self.register_user(user)
-        httpretty.register_uri(httpretty.GET,
-                               '{root}/me/'.format(root=self.api_root),
-                               status=302,
-                               location=target_url)
+        httpretty.register_uri(
+            httpretty.GET,
+            "{root}/me/".format(root=self.api_root),
+            status=302,
+            location=target_url,
+        )
 
     def register_artist(self, artist):
         assert httpretty.is_enabled()
-        url = '{root}/artist/{key}'.format(root=self.api_root, key=artist.key)
-        data = {'slug': artist.key,
-                'name': artist.name,
-                }
+        url = "{root}/artist/{key}".format(root=self.api_root, key=artist.key)
+        data = {
+            "slug": artist.key,
+            "name": artist.name,
+        }
         httpretty.register_uri(httpretty.GET, url, body=json.dumps(data))
 
     def register_user(self, user):
         assert httpretty.is_enabled()
-        url = '{root}/{key}'.format(root=self.api_root, key=user.key)
-        data = {'username': user.key,
-                'name': user.name,
-                }
+        url = "{root}/{key}".format(root=self.api_root, key=user.key)
+        data = {
+            "username": user.key,
+            "name": user.name,
+        }
         httpretty.register_uri(httpretty.GET, url, body=json.dumps(data))
 
     def _register_cloudcast_only(self, user, cloudcast):
         assert httpretty.is_enabled()
         self.register_user(user)
-        url = '{root}/{user}/{key}'.format(root=self.api_root,
-                                           user=user.key,
-                                           key=cloudcast.key)
-        cc_data = {'slug': cloudcast.key,
-                   'name': cloudcast.name,
-                   'sections':
-                   [{'start_time': s.start_time,
-                     'track':
-                     {'name': s.track.name,
-                      'artist':
-                      {'slug': s.track.artist.key,
-                       'name': s.track.artist.name,
-                       },
-                      },
-                     }
-                    for s in cloudcast.sections()],
-                   'tags': [{'name': t}
-                            for t in cloudcast.tags],
-                   'description': cloudcast.description(),
-                   'user': {'username': user.key,
-                            'name': user.name,
-                            },
-                   'created_time': cloudcast.created_time.isoformat(),
-                   'pictures': {
-                       'large': 'http://httpbin.org/status/418',
-                       }
-                   }
+        url = "{root}/{user}/{key}".format(
+            root=self.api_root, user=user.key, key=cloudcast.key
+        )
+        cc_data = {
+            "slug": cloudcast.key,
+            "name": cloudcast.name,
+            "sections": [
+                {
+                    "start_time": s.start_time,
+                    "track": {
+                        "name": s.track.name,
+                        "artist": {
+                            "slug": s.track.artist.key,
+                            "name": s.track.artist.name,
+                        },
+                    },
+                }
+                for s in cloudcast.sections()
+            ],
+            "tags": [{"name": t} for t in cloudcast.tags],
+            "description": cloudcast.description(),
+            "user": {
+                "username": user.key,
+                "name": user.name,
+            },
+            "created_time": cloudcast.created_time.isoformat(),
+            "pictures": {
+                "large": "http://httpbin.org/status/418",
+            },
+        }
         httpretty.register_uri(httpretty.GET, url, body=json.dumps(cc_data))
         return cc_data
 
     def _register_cloudcast_list(self, user, cloudcasts):
         assert httpretty.is_enabled()
-        url = '{root}/{user}/cloudcasts/'.format(root=self.api_root,
-                                                 user=user.key)
+        url = "{root}/{user}/cloudcasts/".format(root=self.api_root, user=user.key)
 
         def make_cc_data(cc):
-            keys_ok = ['tags', 'name', 'slug', 'user', 'created_time']
+            keys_ok = ["tags", "name", "slug", "user", "created_time"]
             return {k: cc[k] for k in keys_ok}
 
         def cloudcast_list(method, uri, headers):
@@ -89,17 +94,17 @@ class MockServer:
             query_params = urlparse.parse_qs(query_string)
             limit = None
             offset = None
-            if 'limit' in query_params:
-                limit = int(query_params['limit'][-1])
-            if 'offset' in query_params:
-                offset = int(query_params['offset'][-1])
+            if "limit" in query_params:
+                limit = int(query_params["limit"][-1])
+            if "offset" in query_params:
+                offset = int(query_params["offset"][-1])
 
             data = [make_cc_data(cc) for cc in cloudcasts]
             if offset is not None:
                 data = data[offset:]
             if limit is not None:
                 data = data[:limit]
-            body = json.dumps({'data': data})
+            body = json.dumps({"data": data})
             return (200, headers, body)
 
         httpretty.register_uri(httpretty.GET, url, body=cloudcast_list)
@@ -117,61 +122,64 @@ class MockServer:
 
     def handle_upload(self, upload_callback):
         assert httpretty.is_enabled()
-        httpretty.register_uri(httpretty.POST,
-                               '{root}/upload/'.format(root=self.api_root),
-                               body=upload_callback
-                               )
+        httpretty.register_uri(
+            httpretty.POST,
+            "{root}/upload/".format(root=self.api_root),
+            body=upload_callback,
+        )
 
     def mock_upload(self, user):
         def mock_upload(request, uri, headers):
             data = parse_multipart(request.body)
-            name = data['name']
+            name = data["name"]
             key = mixcloud.slugify(name)
             sections, tags = parse_headers(data)
-            description = data['description']
+            description = data["description"]
             created_time = datetime.datetime.now()
-            cc = mixcloud.Cloudcast(key, name, sections, tags,
-                                    description, user, created_time)
+            cc = mixcloud.Cloudcast(
+                key, name, sections, tags, description, user, created_time
+            )
             self.register_cloudcast(user, cc)
-            return (200, headers, '{}')
+            return (200, headers, "{}")
+
         self.handle_upload(mock_upload)
 
     def oauth_exchange(self):
         assert httpretty.is_enabled()
-        target_url = '{root}/{endpoint}'.format(root=self.oauth_root,
-                                                endpoint='access_token')
+        target_url = "{root}/{endpoint}".format(
+            root=self.oauth_root, endpoint="access_token"
+        )
         data = {"access_token": "my_access_token"}
-        httpretty.register_uri(httpretty.GET,
-                               target_url,
-                               body=json.dumps(data))
+        httpretty.register_uri(httpretty.GET, target_url, body=json.dumps(data))
 
     def oauth_exchange_fail(self):
         assert httpretty.is_enabled()
-        target_url = '{root}/{endpoint}'.format(root=self.oauth_root,
-                                                endpoint='access_token')
+        target_url = "{root}/{endpoint}".format(
+            root=self.oauth_root, endpoint="access_token"
+        )
         httpretty.register_uri(httpretty.GET, target_url, status=500)
 
 
 def parse_multipart(d):
-    lines = d.split(b'\n')
+    lines = d.split(b"\n")
     k = None
     v = None
     res = {}
     for line in lines:
         line = line.strip()
-        if line.startswith(b'Content-Disposition'):
+        if line.startswith(b"Content-Disposition"):
             parts = line.split(b'"')
             k = parts[1]
-        elif line.startswith(b'--'):
+        elif line.startswith(b"--"):
             pass
-        elif line == '':
+        elif line == "":
             pass
         else:
             v = line
             if k is not None and v is not None:
                 if type(k) == bytes:
-                    k = k.decode('utf-8')
-                v = v.decode('utf-8')
+                    k = k.decode("utf-8")
+                v = v.decode("utf-8")
                 res[k] = v
     return res
 
@@ -184,11 +192,11 @@ def listify(d):
 
 
 def make_section(s):
-    artist_name = s['artist']
+    artist_name = s["artist"]
     slug = mixcloud.slugify(artist_name)
     artist = mixcloud.Artist(slug, artist_name)
-    track = mixcloud.Track(s['song'], artist)
-    sec = mixcloud.Section(int(s['start_time']), track)
+    track = mixcloud.Track(s["song"], artist)
+    sec = mixcloud.Section(int(s["start_time"]), track)
     return sec
 
 
@@ -196,15 +204,15 @@ def parse_headers(data):
     sections = {}
     tags = {}
     for k, v in data.items():
-        if k.startswith('sections-'):
-            parts = k.split('-')
+        if k.startswith("sections-"):
+            parts = k.split("-")
             secnum = int(parts[1])
             what = parts[2]
             if secnum not in sections:
                 sections[secnum] = {}
             sections[secnum][what] = v
-        if k.startswith('tags-'):
-            parts = k.split('-')
+        if k.startswith("tags-"):
+            parts = k.split("-")
             tagnum = int(parts[1])
             tags[tagnum] = v
 
